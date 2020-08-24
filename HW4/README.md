@@ -32,8 +32,28 @@ There are 3 kinds of information that needs to be passed through the pipe. It ca
 
 ### 2.4 Lock Graph
 The monitor, ddchck.c, maintains a lock graph that is updated by the information sent from ddmon.so. Every time a thread calls for a lock, a node is added to the graph. If the thread was holding another mutex in prior to this one, an edge between two nodes is added to the graph. When a thread unlocks and releases a mutex, all the edges to the node that represent the mutex are removed. If no other thread is acquiring the mutex, node is also removed.
-This is what happens when a lock information is received by the ddchck.c. 1) It firsts identifies if the mutex is a new one. If it is, a new index is assigned. Otherwise, the corresponding index is found. 2) Adjacency matrix of the graph is updated and adjacency list is created with it. 3) Figure out if a cycle exists. 4) Print alert message if there is a cycle.
-I will elaborate on detailed steps. 1) I kept a list of mutexes to manage them efficiently. Whenever a lock information is given, ddchck.c checks if the mutex is new. Then if it is new, it adds the mutex to the mutex list, assigning an index. To use in the graph, mutex is represented as a node. This node has an index that corresponds to the mutex list, thread id of the thread that is currently holding the mutex. Thread id is updated only if the mutex was new or not occupied. 2) With the index of the mutex, the adjacency matrix is updated. This is the data structure that represents the edges in the graph. While adjacency matrix is only updated on every call, adjacency list is constructed from scratch with the adjacency matrix every time. 3) To find a cycle and identify the nodes that forms the cycle, I used the algorithm to find the strongly connected components. While running the depth first search with the adjacency list, I put every node I encounter into a stack. When a back edge is discovered, which means a cycle, I stop the search. Then I pop the stack until the node that the back edge was leading to is popped. These are the nodes that consist the cycle. 4) ddchck.c prints out all the mutexes and the thread ids that are responsible.
+This is what happens when a lock information is received by the ddchck.c. 
+
+1) It firsts identifies if the mutex is a new one. If it is, a new index is assigned. Otherwise, the corresponding index is found. 
+
+2) Adjacency matrix of the graph is updated and adjacency list is created with it. 
+
+3) Figure out if a cycle exists. 
+
+4) Print alert message if there is a cycle.
+
+
+I will elaborate on detailed steps.
+
+1) I kept a list of mutexes to manage them efficiently. Whenever a lock information is given, ddchck.c checks if the mutex is new. Then if it is new, it adds the mutex to the mutex list, assigning an index. To use in the graph, mutex is represented as a node. This node has an index that corresponds to the mutex list, thread id of the thread that is currently holding the mutex. Thread id is updated only if the mutex was new or not occupied. 
+
+2) With the index of the mutex, the adjacency matrix is updated. This is the data structure that represents the edges in the graph. While adjacency matrix is only updated on every call, adjacency list is constructed from scratch with the adjacency matrix every time. 
+
+3) To find a cycle and identify the nodes that forms the cycle, I used the algorithm to find the strongly connected components. While running the depth first search with the adjacency list, I put every node I encounter into a stack. When a back edge is discovered, which means a cycle, I stop the search. Then I pop the stack until the node that the back edge was leading to is popped. These are the nodes that consist the cycle. 
+
+4) ddchck.c prints out all the mutexes and the thread ids that are responsible.
+
+
 What happens at unlocking is simple. It identifies the index to see if it new. It the given mutex is new or it is not occupied, ddchck.c does not do anything because it there is nothing to do on this side. However, if the node is actually released, it updates the adjacency matrix and sets the node of that mutex to unoccupied by making the thread id 0.
 
 ## 3. Evaluation
